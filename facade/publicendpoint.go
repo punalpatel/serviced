@@ -232,3 +232,6 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 	glog.V(2).Infof("Service (%s) updated", svc.Name)
 	return nil
 }
+
+func (f *Facade) RemovePublicEndpointVhost(ctx datastore.Context, serviceid, endpointName, vhostName string) error {
+}

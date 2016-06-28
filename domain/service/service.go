@@ -523,7 +523,7 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 				}
 				//error removing an unknown vhost
 				if !found {
-					break
+					return fmt.Errorf("endpoint %s does not have a Vhost %s", application, vhostName)
 				}
 
 				ep.VHostList = vhosts
