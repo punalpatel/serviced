@@ -234,4 +234,5 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 }
 
 func (f *Facade) RemovePublicEndpointVhost(ctx datastore.Context, serviceid, endpointName, vhostName string) error {
+	return nil
 }
