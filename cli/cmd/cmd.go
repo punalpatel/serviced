@@ -345,6 +345,7 @@ func getRuntimeOptions(ctx *cli.Context) config.Options {
 	if os.Getenv("SERVICED_MUX_DISABLE_TLS") == "1" {
 		options.MuxDisableTLS = true
 	}
+	utils.SetRpcPort(options.Listen)
 
 	return options
 }

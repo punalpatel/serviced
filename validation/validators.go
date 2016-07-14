@@ -125,13 +125,6 @@ func IntIn(check int, others ...int) error {
 }
 
 func ValidHostID(hostID string) error {
-	result, err := strconv.ParseUint(hostID, 16, 0)
-	if err != nil {
-		return NewViolation(fmt.Sprintf("unable to convert hostid: %v to uint", hostID))
-	}
-	if result <= 0 {
-		return NewViolation(fmt.Sprintf("not valid hostid: %v", hostID))
-	}
 	return nil
 }
 

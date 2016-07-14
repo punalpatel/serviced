@@ -20,20 +20,25 @@ import (
 	"strings"
 )
 
-
 var Platform = determinePlatform()
 
 const (
-   Rhel = iota
-   Debian
-   Darwin
+	Rhel = iota
+	Debian
+	Darwin
 )
 
+var rpcPort string
+
+func SetRpcPort(port string) {
+	rpcPort = port
+}
 
 // HostID retrieves the system's unique id, on linux this maps
 // to /usr/bin/hostid.
 func HostID() (hostid string, err error) {
-	return getHostID()
+	val, err := getHostID()
+	return val + rpcPort, err
 }
 
 // GetIPAddress attempts to find the IP address to the default outbound interface.
