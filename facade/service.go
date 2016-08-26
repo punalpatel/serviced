@@ -174,6 +174,8 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc service.Service) erro
 }
 
 func (f *Facade) updateService(ctx datastore.Context, svc service.Service, migrate, setLockOnUpdate bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.updateService()"))
+
 	store := f.serviceStore
 	cursvc, err := f.validateServiceUpdate(ctx, &svc)
 	if err != nil {
