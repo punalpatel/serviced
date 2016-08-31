@@ -14,7 +14,6 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -35,8 +34,6 @@ const (
 	zkService    = "/services"
 	retryTimeout = time.Second
 )
-
-var ErrServiceIsRunning = errors.New("can only delete services in a stopped state")
 
 type HasRunningInstances struct {
 	ServiceID string
@@ -60,9 +57,12 @@ func (inst instances) Swap(i, j int)      { inst[i], inst[j] = inst[j], inst[i] 
 
 // ServiceNode is the zookeeper client Node for services
 type ServiceNode struct {
-	*service.Service
-	Locked  bool
-	version interface{}
+	ID           string
+	Name         string
+	DesiredState int
+	Instances    int
+	Locked       bool
+	version      interface{}
 }
 
 // Version implements client.Node
@@ -119,8 +119,6 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		var err error
 
 		var svcnode ServiceNode
-		var svc service.Service
-		svcnode.Service = &svc
 		serviceEvent, err := l.conn.GetW(l.GetPath(serviceID), &svcnode, done)
 		if err != nil {
 			glog.Errorf("Could not load service %s: %s", serviceID, err)
@@ -133,47 +131,47 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			return
 		}
 
-		rss, err := l.getServiceStates(&svc, stateIDs)
+		rss, err := l.getServiceStates(&svcnode, stateIDs)
 		if err != nil {
-			glog.Warningf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
+			glog.Warningf("Could not get service states for service %s (%s): %s", svcnode.Name, svcnode.ID, err)
 			retry = time.After(retryTimeout)
 		} else {
 			// Should the service be running at all?
-			switch service.DesiredState(svc.DesiredState) {
+			switch service.DesiredState(svcnode.DesiredState) {
 			case service.SVCStop:
 				l.stop(rss)
 			case service.SVCRun:
-				if !l.sync(svcnode.Locked, &svc, rss) {
+				if !l.sync(svcnode.Locked, &svcnode, rss) {
 					retry = time.After(retryTimeout)
 				}
 			case service.SVCPause:
 				l.pause(rss)
 			default:
-				glog.Warningf("Unexpected desired state %d for service %s (%s)", svc.DesiredState, svc.Name, svc.ID)
+				glog.Warningf("Unexpected desired state %d for service %s (%s)", svcnode.DesiredState, svcnode.Name, svcnode.ID)
 			}
 		}
 
-		glog.V(2).Infof("Service %s (%s) waiting for event", svc.Name, svc.ID)
+		glog.V(2).Infof("Service %s (%s) waiting for event", svcnode.Name, svcnode.ID)
 
 		select {
 		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
-				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
+				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svcnode.Name, svcnode.ID)
 				l.stop(rss)
 				return
 			}
-			glog.V(2).Infof("Service %s (%s) received event: %v", svc.Name, svc.ID, e)
+			glog.V(2).Infof("Service %s (%s) received event: %v", svcnode.Name, svcnode.ID, e)
 		case e := <-stateEvent:
 			if e.Type == client.EventNodeDeleted {
-				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
+				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svcnode.Name, svcnode.ID)
 				l.stop(rss)
 				return
 			}
-			glog.V(2).Infof("Service %s (%s) received event: %v", svc.Name, svc.ID, e)
+			glog.V(2).Infof("Service %s (%s) received event: %v", svcnode.Name, svcnode.ID, e)
 		case <-retry:
-			glog.Infof("Re-syncing service %s (%s)", svc.Name, svc.ID)
+			glog.Infof("Re-syncing service %s (%s)", svcnode.Name, svcnode.ID)
 		case <-shutdown:
-			glog.V(2).Infof("Leader stopping watch for %s (%s)", svc.Name, svc.ID)
+			glog.V(2).Infof("Leader stopping watch for %s (%s)", svcnode.Name, svcnode.ID)
 			return
 		}
 
@@ -183,17 +181,17 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 }
 
 // getServiceStates returns all the valid service states on a service
-func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []string) ([]dao.RunningService, error) {
+func (l *ServiceListener) getServiceStates(svcNode *ServiceNode, stateIDs []string) ([]dao.RunningService, error) {
 	var rss []dao.RunningService
 	for _, stateID := range stateIDs {
 
 		// get the service state
-		spth := l.GetPath(svc.ID, stateID)
+		spth := l.GetPath(svcNode.ID, stateID)
 		state := &servicestate.ServiceState{}
 		if err := l.conn.Get(spth, &ServiceStateNode{ServiceState: state}); err == client.ErrNoNode {
 			continue
 		} else if err != nil {
-			glog.Errorf("Could not look up instance %s from service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+			glog.Errorf("Could not look up instance %s from service %s (%s): %s", stateID, svcNode.Name, svcNode.ID, err)
 			return nil, err
 		}
 
@@ -206,16 +204,23 @@ func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []stri
 			glog.Errorf("Could not look up instance %s on host %s: %s", stateID, state.HostID, err)
 			return nil, err
 		} else if !ok {
-			if err := removeInstance(l.conn, l.poolid, state.HostID, svc.ID, stateID); err != nil {
-				glog.Errorf("Could not remove incongruent instance %s from service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+			if err := removeInstance(l.conn, l.poolid, state.HostID, svcNode.ID, stateID); err != nil {
+				glog.Errorf("Could not remove incongruent instance %s from service %s (%s): %s", stateID, svcNode.Name, svcNode.ID, err)
 				return nil, err
 			}
 			continue
 		}
 
+		// Get the service data for this service node
+		svc, err := l.getService(svcNode)
+		if err != nil {
+			glog.Warningf("Could not look up service data for service node %s", svcNode.Name)
+			return nil, err
+		}
+
 		rs, err := NewRunningService(svc, state)
 		if err != nil {
-			glog.Errorf("Could not get instance %s for service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+			glog.Errorf("Could not get instance %s for service %s (%s): %s", stateID, svcNode.Name, svcNode.ID, err)
 			return nil, err
 		}
 		rss = append(rss, *rs)
@@ -223,8 +228,19 @@ func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []stri
 	return rss, nil
 }
 
+// Look up the service data from a service node.
+func (l *ServiceListener) getService(svcNode *ServiceNode) (*service.Service, error) {
+	return &service.Service{}, nil
+}
+
 // sync synchronizes the number of running instances for this service
-func (l *ServiceListener) sync(locked bool, svc *service.Service, rss []dao.RunningService) bool {
+func (l *ServiceListener) sync(locked bool, svcNode *ServiceNode, rss []dao.RunningService) bool {
+	// Get the service data for this service node
+	svc, err := l.getService(svcNode)
+	if err != nil {
+		glog.Warningf("Could not look up service data for service node %s", svcNode.Name)
+		return false
+	}
 	// sort running services by instance ID, so that you stop instances by the
 	// lowest instance ID first and start instances with the greatest instance
 	// ID last.
@@ -374,7 +390,7 @@ func StartService(conn client.Connection, serviceID string) error {
 	if err := conn.Get(path, &node); err != nil {
 		return err
 	}
-	node.Service.DesiredState = int(service.SVCRun)
+	node.DesiredState = int(service.SVCRun)
 	return conn.Set(path, &node)
 }
 
@@ -387,7 +403,7 @@ func StopService(conn client.Connection, serviceID string) error {
 	if err := conn.Get(path, &node); err != nil {
 		return err
 	}
-	node.Service.DesiredState = int(service.SVCStop)
+	node.DesiredState = int(service.SVCStop)
 	return conn.Set(path, &node)
 }
 
@@ -428,43 +444,19 @@ func SyncServices(conn client.Connection, svcs []service.Service) error {
 
 // UpdateService updates a service node if it exists, otherwise creates it
 func UpdateService(conn client.Connection, svcData service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	// svc is the service to be marshalled into zookeeper
-	svc := &service.Service{
-		ID:              svcData.ID,
-		Name:            svcData.Name,
-		Startup:         svcData.Startup,
-		Environment:     svcData.Environment,
-		Instances:       svcData.Instances,
-		ChangeOptions:   svcData.ChangeOptions,
-		ImageID:         svcData.ImageID,
-		LogConfigs:      svcData.LogConfigs,
-		DesiredState:    svcData.DesiredState,
-		HostPolicy:      svcData.HostPolicy,
-		Privileged:      svcData.Privileged,
-		Endpoints:       svcData.Endpoints,
-		Volumes:         svcData.Volumes,
-		Snapshot:        svcData.Snapshot,
-		RAMCommitment:   svcData.RAMCommitment,
-		CPUCommitment:   svcData.CPUCommitment,
-		HealthChecks:    svcData.HealthChecks,
-		MemoryLimit:     svcData.MemoryLimit,
-		CPUShares:       svcData.CPUShares,
-		ParentServiceID: svcData.ParentServiceID,
-		Hostname:        svcData.Hostname,
-	}
-	svcNodePath := servicepath(svc.ID)
-	svcNode := ServiceNode{Service: &service.Service{}}
+	svcNodePath := servicepath(svcData.ID)
+	// svcNode is the struct to be marshalled into zookeeper
+	svcNode := ServiceNode{ID: svcData.ID, Name: svcData.Name, DesiredState: svcData.DesiredState}
 	if err := conn.Get(svcNodePath, &svcNode); err == client.ErrNoNode {
 		// the node does not exist, so create it
 		// setLockOnCreate sets the lock as the node is created.
 		svcNode.Locked = setLockOnCreate
-		svcNode.Service = svc
 		if err := conn.Create(svcNodePath, &svcNode); err != nil {
 			glog.Errorf("Could not create node at %s: %s", svcNodePath, err)
 			return err
 		}
 	} else if err != nil {
-		glog.Errorf("Could not look up node for service %s: %s", svc.ID, err)
+		glog.Errorf("Could not look up node for service %s: %s", svcData.ID, err)
 		return err
 	}
 	// setLockOnUpdate sets the lock to true if enabled, otherwise it uses
@@ -472,9 +464,8 @@ func UpdateService(conn client.Connection, svcData service.Service, setLockOnCre
 	if setLockOnUpdate {
 		svcNode.Locked = true
 	}
-	svcNode.Service = svc
 	if err := conn.Set(svcNodePath, &svcNode); err != nil {
-		glog.Errorf("Could not update node for service %s: %s", svc.ID, err)
+		glog.Errorf("Could not update node for service %s: %s", svcData.ID, err)
 		return err
 	}
 	return nil
@@ -534,7 +525,6 @@ func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID 
 			// Get the service node and verify that the number of running instances meets or exceeds the number
 			// of instances required by the service
 			var node ServiceNode
-			node.Service = &service.Service{}
 			if err := conn.Get(servicepath(serviceID), &node); err != nil {
 				return err
 			} else if count >= node.Instances {

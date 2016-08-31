@@ -15,7 +15,6 @@ package service
 
 import (
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 )
 
@@ -52,7 +51,7 @@ func (l ServiceLockNode) Path() string {
 func LockServices(conn client.Connection, svcs []ServiceLockNode) error {
 	tx := conn.NewTransaction()
 	for _, svc := range svcs {
-		node := ServiceNode{Service: &service.Service{}}
+		node := ServiceNode{}
 		if err := conn.Get(svc.Path(), &node); err != nil {
 			return err
 		}
@@ -66,7 +65,7 @@ func LockServices(conn client.Connection, svcs []ServiceLockNode) error {
 func UnlockServices(conn client.Connection, svcs []ServiceLockNode) error {
 	tx := conn.NewTransaction()
 	for _, svc := range svcs {
-		node := ServiceNode{Service: &service.Service{}}
+		node := ServiceNode{}
 		if err := conn.Get(svc.Path(), &node); err != nil && err != client.ErrNoNode {
 			glog.Infof("Could not get service %s in pool %s: %s", svc.ServiceID, svc.PoolID)
 			return err
