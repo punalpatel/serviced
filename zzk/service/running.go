@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/zzk"
 )
 
@@ -70,9 +71,9 @@ func NewRunningService(service *service.Service, state *servicestate.ServiceStat
 }
 
 // LoadRunningService returns a RunningService object given a coordinator connection
-func LoadRunningService(conn client.Connection, serviceID, ssID string) (*dao.RunningService, error) {
-	var node ServiceNode
-	if err := conn.Get(servicepath(serviceID), &node); err != nil {
+func LoadRunningService(conn client.Connection, masterAddress string, serviceID, ssID string) (*dao.RunningService, error) {
+	var svcNode ServiceNode
+	if err := conn.Get(servicepath(serviceID), &svcNode); err != nil {
 		return nil, err
 	}
 
@@ -81,11 +82,23 @@ func LoadRunningService(conn client.Connection, serviceID, ssID string) (*dao.Ru
 		return nil, err
 	}
 
-	return nil, nil //NewRunningService(node.Service, state.ServiceState)
+	// Since all we have is the zk data, we need to query rpc for the service
+	// information.
+
+	svc := service.Service{}
+	if cpClient, err := node.NewControlClient(masterAddress); err != nil {
+		return nil, err
+	} else {
+		if err := cpClient.GetService(svcNode.ID, &svc); err != nil {
+			return nil, err
+		}
+	}
+
+	return NewRunningService(svc, state.ServiceState)
 }
 
 // LoadRunningServicesByHost returns a slice of RunningServices given a host(s)
-func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]dao.RunningService, error) {
+func LoadRunningServicesByHost(conn client.Connection, masterAddress string, hostIDs ...string) ([]dao.RunningService, error) {
 	var rss []dao.RunningService = make([]dao.RunningService, 0)
 	for _, hostID := range hostIDs {
 		hpth := path.Join("/hosts", hostID, "instances")
@@ -102,7 +115,7 @@ func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]dao
 			} else if err != nil {
 				return nil, err
 			}
-			rs, err := LoadRunningService(conn, hsdat.ServiceID, hsdat.ServiceStateID)
+			rs, err := LoadRunningService(conn, masterAddress, hsdat.ServiceID, hsdat.ServiceStateID)
 			if err != nil {
 				return nil, err
 			}
@@ -113,7 +126,7 @@ func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]dao
 }
 
 // LoadRunningServicesByService returns a slice of RunningServices per service id(s)
-func LoadRunningServicesByService(conn client.Connection, serviceIDs ...string) ([]dao.RunningService, error) {
+func LoadRunningServicesByService(conn client.Connection, masterAddress string, serviceIDs ...string) ([]dao.RunningService, error) {
 	var rss []dao.RunningService
 	for _, serviceID := range serviceIDs {
 		if exists, err := zzk.PathExists(conn, servicepath(serviceID)); err != nil {
@@ -127,7 +140,7 @@ func LoadRunningServicesByService(conn client.Connection, serviceIDs ...string) 
 			return nil, err
 		}
 		for _, ssID := range stateIDs {
-			rs, err := LoadRunningService(conn, serviceID, ssID)
+			rs, err := LoadRunningService(conn, masterAddress, serviceID, ssID)
 			if err != nil {
 				return nil, err
 			}
@@ -138,7 +151,7 @@ func LoadRunningServicesByService(conn client.Connection, serviceIDs ...string) 
 }
 
 // LoadRunningServices gets all RunningServices
-func LoadRunningServices(conn client.Connection) ([]dao.RunningService, error) {
+func LoadRunningServices(conn client.Connection, masterAddress string) ([]dao.RunningService, error) {
 	if exists, err := zzk.PathExists(conn, servicepath()); err != nil {
 		return nil, err
 	} else if !exists {
@@ -160,5 +173,5 @@ func LoadRunningServices(conn client.Connection) ([]dao.RunningService, error) {
 		}
 	}
 
-	return LoadRunningServicesByService(conn, ids...)
+	return LoadRunningServicesByService(conn, masterAddress, ids...)
 }

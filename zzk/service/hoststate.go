@@ -67,6 +67,7 @@ type HostStateHandler interface {
 	PauseService(*service.Service, *servicestate.ServiceState) error
 	ResumeService(*service.Service, *servicestate.ServiceState) error
 	StopService(*servicestate.ServiceState) error
+	GetService(ID string, svc *service.Service) error
 }
 
 // HostStateListener is the listener for monitoring service instances
@@ -95,11 +96,6 @@ func (l *HostStateListener) SetConnection(conn client.Connection) { l.conn = con
 func (l *HostStateListener) GetPath(nodes ...string) string {
 	parts := append([]string{zkHost, l.hostID, "instances"}, nodes...)
 	return path.Join(parts...)
-}
-
-// Look up the service data from a service node.
-func (l *HostStateListener) getService(svcNode *ServiceNode) (*service.Service, error) {
-	return &service.Service{}, nil
 }
 
 // Ready implements zzk.Listener
@@ -238,8 +234,8 @@ func (l *HostStateListener) terminateInstance(locker sync.Locker, done chan<- st
 }
 
 func (l *HostStateListener) startInstance(shutdown <-chan interface{}, locker sync.Locker, svcNode *ServiceNode, state *servicestate.ServiceState) (<-chan struct{}, error) {
-	svc, err := l.getService(svcNode)
-	if err != nil {
+	svc := service.Service{}
+	if err := l.handler.GetService(svcNode.ID, &svc); err != nil {
 		glog.Errorf("Could not look up service data for service node %s", svcNode.Name)
 		return nil, err
 	}
@@ -264,7 +260,7 @@ func (l *HostStateListener) startInstance(shutdown <-chan interface{}, locker sy
 	state.ImageUUID = uuid
 	done := make(chan struct{})
 	locker.Lock()
-	if err := l.handler.StartService(svc, state, l.terminateInstance(locker, done)); err != nil {
+	if err := l.handler.StartService(&svc, state, l.terminateInstance(locker, done)); err != nil {
 		glog.Errorf("Error trying to start service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
 		return nil, err
 	}
@@ -272,15 +268,15 @@ func (l *HostStateListener) startInstance(shutdown <-chan interface{}, locker sy
 }
 
 func (l *HostStateListener) attachInstance(locker sync.Locker, svcNode *ServiceNode, state *servicestate.ServiceState) (<-chan struct{}, error) {
-	svc, err := l.getService(svcNode)
-	if err != nil {
+	svc := service.Service{}
+	if err := l.handler.GetService(svcNode.ID, &svc); err != nil {
 		glog.Errorf("Could not look up service data for service node %s", svcNode.Name)
 		return nil, err
 	}
 
 	done := make(chan struct{})
 	locker.Lock()
-	if err := l.handler.AttachService(svc, state, l.terminateInstance(locker, done)); err != nil {
+	if err := l.handler.AttachService(&svc, state, l.terminateInstance(locker, done)); err != nil {
 		glog.Errorf("Error trying to attach to service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
 		return nil, err
 	}
@@ -290,13 +286,13 @@ func (l *HostStateListener) attachInstance(locker sync.Locker, svcNode *ServiceN
 func (l *HostStateListener) pauseInstance(svcNode *ServiceNode, state *servicestate.ServiceState) error {
 	glog.Infof("Pausing service instance %s for service %s (%s)", state.ID, svcNode.Name, svcNode.ID)
 
-	svc, err := l.getService(svcNode)
-	if err != nil {
+	svc := service.Service{}
+	if err := l.handler.GetService(svcNode.ID, &svc); err != nil {
 		glog.Errorf("Could not look up service data for service node %s", svcNode.Name)
 		return err
 	}
 
-	if err := l.handler.PauseService(svc, state); err != nil {
+	if err := l.handler.PauseService(&svc, state); err != nil {
 		glog.Errorf("Could not pause service instance %s: %s", state.ID, err)
 		return err
 	}
@@ -307,13 +303,13 @@ func (l *HostStateListener) pauseInstance(svcNode *ServiceNode, state *servicest
 }
 
 func (l *HostStateListener) resumeInstance(svcNode *ServiceNode, state *servicestate.ServiceState) error {
-	svc, err := l.getService(svcNode)
-	if err != nil {
+	svc := service.Service{}
+	if err := l.handler.GetService(svcNode.ID, &svc); err != nil {
 		glog.Errorf("Could not look up service data for service node %s", svcNode.Name)
 		return err
 	}
 
-	if err := l.handler.ResumeService(svc, state); err != nil {
+	if err := l.handler.ResumeService(&svc, state); err != nil {
 		glog.Errorf("Could not resume service instance %s: %s", state.ID, err)
 		return err
 	}

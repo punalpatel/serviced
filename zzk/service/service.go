@@ -74,6 +74,7 @@ func (node *ServiceNode) SetVersion(version interface{}) { node.version = versio
 // ServiceHandler handles all non-zookeeper interactions required by the service
 type ServiceHandler interface {
 	SelectHost(*service.Service) (*host.Host, error)
+	GetService(string, *service.Service) error
 }
 
 // ServiceListener is the listener for /services
@@ -151,27 +152,27 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			}
 		}
 
-		glog.V(2).Infof("Service %s (%s) waiting for event", svcnode.Name, svcnode.ID)
+		glog.V(0).Infof("Service %s (%s) waiting for event", svcnode.Name, svcnode.ID)
 
 		select {
 		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
-				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svcnode.Name, svcnode.ID)
+				glog.V(0).Infof("Shutting down service %s (%s) due to node delete", svcnode.Name, svcnode.ID)
 				l.stop(rss)
 				return
 			}
-			glog.V(2).Infof("Service %s (%s) received event: %v", svcnode.Name, svcnode.ID, e)
+			glog.V(0).Infof("Service %s (%s) received event: %v", svcnode.Name, svcnode.ID, e)
 		case e := <-stateEvent:
 			if e.Type == client.EventNodeDeleted {
-				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svcnode.Name, svcnode.ID)
+				glog.V(0).Infof("Shutting down service %s (%s) due to node delete", svcnode.Name, svcnode.ID)
 				l.stop(rss)
 				return
 			}
-			glog.V(2).Infof("Service %s (%s) received event: %v", svcnode.Name, svcnode.ID, e)
+			glog.V(0).Infof("Service %s (%s) received event: %v", svcnode.Name, svcnode.ID, e)
 		case <-retry:
 			glog.Infof("Re-syncing service %s (%s)", svcnode.Name, svcnode.ID)
 		case <-shutdown:
-			glog.V(2).Infof("Leader stopping watch for %s (%s)", svcnode.Name, svcnode.ID)
+			glog.V(0).Infof("Leader stopping watch for %s (%s)", svcnode.Name, svcnode.ID)
 			return
 		}
 
@@ -212,13 +213,13 @@ func (l *ServiceListener) getServiceStates(svcNode *ServiceNode, stateIDs []stri
 		}
 
 		// Get the service data for this service node
-		svc, err := l.getService(svcNode)
-		if err != nil {
+		svc := service.Service{}
+		if err := l.handler.GetService(svcNode.ID, &svc); err != nil {
 			glog.Warningf("Could not look up service data for service node %s", svcNode.Name)
 			return nil, err
 		}
 
-		rs, err := NewRunningService(svc, state)
+		rs, err := NewRunningService(&svc, state)
 		if err != nil {
 			glog.Errorf("Could not get instance %s for service %s (%s): %s", stateID, svcNode.Name, svcNode.ID, err)
 			return nil, err
@@ -228,19 +229,15 @@ func (l *ServiceListener) getServiceStates(svcNode *ServiceNode, stateIDs []stri
 	return rss, nil
 }
 
-// Look up the service data from a service node.
-func (l *ServiceListener) getService(svcNode *ServiceNode) (*service.Service, error) {
-	return &service.Service{}, nil
-}
-
 // sync synchronizes the number of running instances for this service
 func (l *ServiceListener) sync(locked bool, svcNode *ServiceNode, rss []dao.RunningService) bool {
 	// Get the service data for this service node
-	svc, err := l.getService(svcNode)
-	if err != nil {
+	svc := service.Service{}
+	if err := l.handler.GetService(svcNode.ID, &svc); err != nil {
 		glog.Warningf("Could not look up service data for service node %s", svcNode.Name)
 		return false
 	}
+
 	// sort running services by instance ID, so that you stop instances by the
 	// lowest instance ID first and start instances with the greatest instance
 	// ID last.
@@ -277,7 +274,7 @@ func (l *ServiceListener) sync(locked bool, svcNode *ServiceNode, rss []dao.Runn
 		}
 		// the number of running instances is *less* than the number of
 		// instances that need to be running, so schedule instances to start
-		glog.V(2).Infof("Starting %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
+		glog.V(0).Infof("Starting %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
 		var (
 			last        = 0
 			instanceIDs = make([]int, netInstances)
@@ -299,12 +296,12 @@ func (l *ServiceListener) sync(locked bool, svcNode *ServiceNode, rss []dao.Runn
 			last += 1
 		}
 
-		return netInstances == l.start(svc, instanceIDs)
+		return netInstances == l.start(&svc, instanceIDs)
 	} else if netInstances = -netInstances; netInstances > 0 {
 		// the number of running instances is *greater* than the number of
 		// instances that need to be running, so schedule instances to stop of
 		// the highest instance IDs.
-		glog.V(2).Infof("Stopping %d of %d instances of service %s (%s)", netInstances, len(rss), svc.Name, svc.ID)
+		glog.V(0).Infof("Stopping %d of %d instances of service %s (%s)", netInstances, len(rss), svc.Name, svc.ID)
 		l.stop(rss[svc.Instances:])
 	}
 
@@ -317,7 +314,7 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 
 	for i, id = range instanceIDs {
 		if success := func(instanceID int) bool {
-			glog.V(2).Infof("Waiting to acquire scheduler lock for service %s (%s)", svc.Name, svc.ID)
+			glog.V(0).Infof("Waiting to acquire scheduler lock for service %s (%s)", svc.Name, svc.ID)
 			// only one service instance can be scheduled at a time
 			l.Lock()
 			defer l.Unlock()
@@ -328,7 +325,7 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 				return false
 			}
 
-			glog.V(2).Infof("Host %s found, building service instance %d for %s (%s)", host.ID, id, svc.Name, svc.ID)
+			glog.V(0).Infof("Host %s found, building service instance %d for %s (%s)", host.ID, id, svc.Name, svc.ID)
 
 			state, err := servicestate.BuildFromService(svc, host.ID)
 			if err != nil {
@@ -342,7 +339,7 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 				glog.Warningf("Could not add service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
 				return false
 			}
-			glog.V(2).Infof("Starting service instance %s for service %s (%s) on host %s", state.ID, svc.Name, svc.ID, host.ID)
+			glog.V(0).Infof("Starting service instance %s for service %s (%s) on host %s", state.ID, svc.Name, svc.ID, host.ID)
 			return true
 		}(id); !success {
 			// 'i' is the index of the unsuccessful instance id which should portray
@@ -365,7 +362,7 @@ func (l *ServiceListener) stop(rss []dao.RunningService) {
 			removeInstance(l.conn, l.poolid, state.HostID, state.ServiceID, state.ID)
 			continue
 		}
-		glog.V(2).Infof("Stopping service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)
+		glog.V(0).Infof("Stopping service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)
 	}
 }
 
@@ -377,7 +374,7 @@ func (l *ServiceListener) pause(rss []dao.RunningService) {
 			glog.Warningf("Could not pause service instance %s (%s) for service %s: %s", state.ID, state.Name, state.ServiceID, err)
 			continue
 		}
-		glog.V(2).Infof("Pausing service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)
+		glog.V(0).Infof("Pausing service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)
 	}
 }
 

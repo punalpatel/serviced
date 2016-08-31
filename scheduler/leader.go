@@ -67,6 +67,11 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 	zzk.Start(shutdown, conn, serviceListener, hreg)
 }
 
+// Returns the requested service from rpc.
+func (l *leader) GetService(ID string, svc *service.Service) error {
+	return l.cpClient.GetService(ID, svc)
+}
+
 // SelectHost chooses a host from the pool for the specified service. If the service
 // has an address assignment the host will already be selected. If not the host with the least amount
 // of memory committed to running containers will be chosen.
