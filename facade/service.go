@@ -1077,7 +1077,9 @@ func (f *Facade) GetRunningServices(ctx datastore.Context) ([]dao.RunningService
 		if err != nil {
 			return services, err
 		}
-		svcs, err := zkservice.LoadRunningServices(conn)
+
+		// Note: hack to get the service from rpc in zkservice.*RunningService* methods
+		svcs, err := zkservice.LoadRunningServices(conn, "localhost:4979")
 		if err != nil {
 			return services, err
 		}
@@ -1103,7 +1105,8 @@ func (f *Facade) GetRunningServicesForHosts(ctx datastore.Context, hostIDs ...st
 			glog.Errorf("Error in getting a connection based on pool %v: %v", pool, err)
 			return nil, err
 		}
-		svcs, err := zkservice.LoadRunningServicesByHost(conn, hosts...)
+		// Note: hack to get the service from rpc in zkservice.*RunningService* methods
+		svcs, err := zkservice.LoadRunningServicesByHost(conn, "localhost:4979", hosts...)
 		if err != nil {
 			glog.Errorf("zkservice.LoadRunningServicesByHost (conn: %+v hosts: %v) failed: %v", conn, hosts, err)
 			return nil, err

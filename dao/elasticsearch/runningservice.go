@@ -14,6 +14,7 @@
 package elasticsearch
 
 import (
+	"fmt"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/zzk"
@@ -87,7 +88,8 @@ func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, 
 		return err
 	}
 
-	if thisRunning, err := zkservice.LoadRunningService(poolBasedConn, request.ServiceID, request.ServiceStateID); err != nil {
+	masterAddress := fmt.Sprintf("%s:%d", this.hostName, this.rpcPort)
+	if thisRunning, err := zkservice.LoadRunningService(poolBasedConn, masterAddress, request.ServiceID, request.ServiceStateID); err != nil {
 		glog.Errorf("zkservice.LoadRunningService failed (conn: %+v serviceID: %v): %v", poolBasedConn, request.ServiceID, err)
 		return err
 	} else {

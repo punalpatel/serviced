@@ -21,9 +21,26 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/zzk"
+
+	"github.com/control-center/serviced/rpc/rpcutils"
 )
+
+// Queries the service from RPC.  -- there's got to be a better way..
+func getService(masterAddress string, svcNode *ServiceNode) (*service.Service, error) {
+	rpcClient, err := rpcutils.GetCachedClient(masterAddress)
+	if err != nil {
+		return nil, err
+	}
+	service := &service.Service{}
+	err = rpcClient.Call("ControlCenter.GetService", svcNode.ID, service, 0)
+	if err != nil {
+		return nil, err
+	}
+	service.DesiredState = svcNode.DesiredState
+	service.Instances = svcNode.Instances
+	return service, nil
+}
 
 // NewRunningService instantiates a RunningService object from a given service and service state
 func NewRunningService(service *service.Service, state *servicestate.ServiceState) (*dao.RunningService, error) {
@@ -84,14 +101,9 @@ func LoadRunningService(conn client.Connection, masterAddress string, serviceID,
 
 	// Since all we have is the zk data, we need to query rpc for the service
 	// information.
-
-	svc := service.Service{}
-	if cpClient, err := node.NewControlClient(masterAddress); err != nil {
+	svc, err := getService(masterAddress, &svcNode)
+	if err != nil {
 		return nil, err
-	} else {
-		if err := cpClient.GetService(svcNode.ID, &svc); err != nil {
-			return nil, err
-		}
 	}
 
 	return NewRunningService(svc, state.ServiceState)
