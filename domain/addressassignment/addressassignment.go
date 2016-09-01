@@ -17,14 +17,14 @@ import "github.com/control-center/serviced/datastore"
 
 //AddressAssignment is used to track Ports that have been assigned to a Service.
 type AddressAssignment struct {
-	ID             string //Generated id
-	AssignmentType string //static or virtual
-	HostID         string //Host id if type is static
-	PoolID         string //Pool id if type is virtual
-	IPAddr         string //Used to associate to resource in Pool or Host
-	Port           uint16 //Actual assigned port
-	ServiceID      string //Service using this assignment
-	EndpointName   string //Endpoint in the service using the assignment
+	ID             string `json:",omitempty"` //Generated id
+	AssignmentType string `json:",omitempty"` //static or virtual
+	HostID         string `json:",omitempty"` //Host id if type is static
+	PoolID         string `json:",omitempty"` //Pool id if type is virtual
+	IPAddr         string `json:",omitempty"` //Used to associate to resource in Pool or Host
+	Port           uint16 `json:",omitempty"` //Actual assigned port
+	ServiceID      string `json:",omitempty"` //Service using this assignment
+	EndpointName   string `json:",omitempty"` //Endpoint in the service using the assignment
 	datastore.VersionedEntity
 }
 

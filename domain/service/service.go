@@ -59,68 +59,67 @@ const (
 
 // Service A Service that can run in serviced.
 type Service struct {
-	ID                string
-	Name              string
-	Title             string // Title is a label used when describing this service in the context of a service tree
-	Version           string
-	Context           map[string]interface{}
-	Environment       []string
-	Startup           string
-	Description       string
-	Tags              []string
-	OriginalConfigs   map[string]servicedefinition.ConfigFile
-	ConfigFiles       map[string]servicedefinition.ConfigFile
-	Instances         int
-	InstanceLimits    domain.MinMax
-	ChangeOptions     []string
-	ImageID           string
-	PoolID            string
-	DesiredState      int
-	HostPolicy        servicedefinition.HostPolicy
-	Hostname          string
-	Privileged        bool
-	Launch            string
-	Endpoints         []ServiceEndpoint
-	Tasks             []servicedefinition.Task
-	ParentServiceID   string
-	Volumes           []servicedefinition.Volume
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	DeploymentID      string
-	DisableImage      bool
-	LogConfigs        []servicedefinition.LogConfig
-	Snapshot          servicedefinition.SnapshotCommands
-	DisableShell      bool
-	Runs              map[string]string // FIXME: This field is deprecated. Remove when possible.
-	Commands          map[string]domain.Command
-	RAMCommitment     utils.EngNotation
-	CPUCommitment     uint64
-	Actions           map[string]string
-	HealthChecks      map[string]health.HealthCheck // A health check for the service.
-	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
-	MonitoringProfile domain.MonitorProfile
-	MemoryLimit       float64
-	CPUShares         int64
-	PIDFile           string
+	ID                string                                  `json:",omitempty"`
+	Name              string                                  `json:",omitempty"`
+	Title             string                                  `json:",omitempty"` // Title is a label used when describing this service in the context of a service tree
+	Version           string                                  `json:",omitempty"`
+	Context           map[string]interface{}                  `json:",omitempty"`
+	Environment       []string                                `json:",omitempty"`
+	Startup           string                                  `json:",omitempty"`
+	Description       string                                  `json:",omitempty"`
+	Tags              []string                                `json:",omitempty"`
+	OriginalConfigs   map[string]servicedefinition.ConfigFile `json:",omitempty"`
+	ConfigFiles       map[string]servicedefinition.ConfigFile `json:",omitempty"`
+	Instances         int                                     `json:",omitempty"`
+	InstanceLimits    domain.MinMax                           `json:",omitempty"`
+	ChangeOptions     []string                                `json:",omitempty"`
+	ImageID           string                                  `json:",omitempty"`
+	PoolID            string                                  `json:",omitempty"`
+	DesiredState      int                                     `json:",omitempty"`
+	HostPolicy        servicedefinition.HostPolicy            `json:",omitempty"`
+	Hostname          string                                  `json:",omitempty"`
+	Privileged        bool                                    `json:",omitempty"`
+	Launch            string                                  `json:",omitempty"`
+	Endpoints         []ServiceEndpoint                       `json:",omitempty"`
+	Tasks             []servicedefinition.Task                `json:",omitempty"`
+	ParentServiceID   string                                  `json:",omitempty"`
+	Volumes           []servicedefinition.Volume              `json:",omitempty"`
+	CreatedAt         time.Time                               `json:",omitempty"`
+	UpdatedAt         time.Time                               `json:",omitempty"`
+	DeploymentID      string                                  `json:",omitempty"`
+	DisableImage      bool                                    `json:",omitempty"`
+	LogConfigs        []servicedefinition.LogConfig           `json:",omitempty"`
+	Snapshot          servicedefinition.SnapshotCommands      `json:",omitempty"`
+	DisableShell      bool                                    `json:",omitempty"`
+	Runs              map[string]string                       `json:",omitempty"` // FIXME: This field is deprecated. Remove when possible.
+	Commands          map[string]domain.Command               `json:",omitempty"`
+	RAMCommitment     utils.EngNotation                       `json:",omitempty"`
+	CPUCommitment     uint64                                  `json:",omitempty"`
+	Actions           map[string]string                       `json:",omitempty"`
+	HealthChecks      map[string]health.HealthCheck           `json:",omitempty"` // A health check for the service.
+	Prereqs           []domain.Prereq                         `json:",omitempty"` // Optional list of scripts that must be successfully run before kicking off the service command.
+	MonitoringProfile domain.MonitorProfile                   `json:",omitempty"`
+	MemoryLimit       float64                                 `json:",omitempty"`
+	CPUShares         int64                                   `json:",omitempty"`
+	PIDFile           string                                  `json:",omitempty"`
 	datastore.VersionedEntity
 }
 
 //ServiceEndpoint endpoint exported or imported by a service
 type ServiceEndpoint struct {
-	Name                string // Human readable name of the endpoint. Unique per service definition
-	Purpose             string
-	Protocol            string
-	PortNumber          uint16
-	PortTemplate        string // A template which, if specified, is used to calculate the port number
-	VirtualAddress      string // An address by which an imported endpoint may be accessed within the container, e.g. "mysqlhost:1234"
-	Application         string
-	ApplicationTemplate string
-	AddressConfig       servicedefinition.AddressResourceConfig
-	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
-	// subdomain, i.e "myapplication"  not "myapplication.host.com"
-	VHostList         []servicedefinition.VHost // VHost is used to request named vhost(s) for this endpoint.
-	AddressAssignment addressassignment.AddressAssignment
-	PortList          []servicedefinition.Port // The list of enabled/disabled ports to assign to this endpoint.
+	Name                string                                  `json:",omitempty"` // Human readable name of the endpoint. Unique per service definition
+	Purpose             string                                  `json:",omitempty"`
+	Protocol            string                                  `json:",omitempty"`
+	PortNumber          uint16                                  `json:",omitempty"`
+	PortTemplate        string                                  `json:",omitempty"` // A template which, if specified, is used to calculate the port number
+	VirtualAddress      string                                  `json:",omitempty"` // An address by which an imported endpoint may be accessed within the container, e.g. "mysqlhost:1234"
+	Application         string                                  `json:",omitempty"`
+	ApplicationTemplate string                                  `json:",omitempty"`
+	AddressConfig       servicedefinition.AddressResourceConfig `json:",omitempty"`
+	VHosts              []string                                `json:",omitempty"` // VHost is used to request named vhost for this endpoint. Should be the name of a
+	VHostList           []servicedefinition.VHost               `json:",omitempty"` // VHost is used to request named vhost(s) for this endpoint, i.e "myapplication"  not "myapplication.host.com"
+	AddressAssignment   addressassignment.AddressAssignment     `json:",omitempty"`
+	PortList            []servicedefinition.Port                `json:",omitempty"` // The list of enabled/disabled ports to assign to this endpoint.
 }
 
 // IsConfigurable returns true if the endpoint is configurable

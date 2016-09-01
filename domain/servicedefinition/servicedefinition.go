@@ -89,16 +89,16 @@ type EndpointDefinition struct {
 
 // VHost is the configuration for an application endpoint that wants an http VHost endpoint provided by Control Center
 type VHost struct {
-	Name    string // name of the vhost subdomain subdomain, i.e "myapplication"  not "myapplication.host.com
-	Enabled bool   // whether the vhost should be enabled or disabled.
+	Name    string `json:",omitempty"` // name of the vhost subdomain subdomain, i.e "myapplication"  not "myapplication.host.com
+	Enabled bool   `json:",omitempty"` // whether the vhost should be enabled or disabled.
 }
 
 // Port is the configuration for an application endpoint port.
 type Port struct {
-	PortAddr string // which port number to use for this endpoint
-	Enabled  bool   // whether the port should be enabled or disabled.
-	UseTLS   bool   // Does this port endpoint use tls.
-	Protocol string // What protocol (if any) does the endpoind use.
+	PortAddr string `json:",omitempty"` // which port number to use for this endpoint
+	Enabled  bool   `json:",omitempty"` // whether the port should be enabled or disabled.
+	UseTLS   bool   `json:",omitempty"` // Does this port endpoint use tls.
+	Protocol string `json:",omitempty"` // What protocol (if any) does the endpoind use.
 }
 
 // Task A scheduled task
@@ -123,16 +123,16 @@ type Volume struct {
 
 // ConfigFile config file for a service
 type ConfigFile struct {
-	Filename    string // complete path of file
-	Owner       string // owner of file within the container, root:root or 0:0 for root owned file, what you would pass to chown
-	Permissions string // permission of file, eg 0664, what you would pass to chmod
-	Content     string // content of config file
+	Filename    string `json:",omitempty"` // complete path of file
+	Owner       string `json:",omitempty"` // owner of file within the container, root:root or 0:0 for root owned file, what you would pass to chown
+	Permissions string `json:",omitempty"` // permission of file, eg 0664, what you would pass to chmod
+	Content     string `json:",omitempty"` // content of config file
 }
 
 //AddressResourceConfig defines an external facing port for a service definition
 type AddressResourceConfig struct {
-	Port     uint16
-	Protocol string
+	Port     uint16 `json:",omitempty"`
+	Protocol string `json:",omitempty"`
 }
 
 // LogConfig represents the configuration for a logfile for a service.

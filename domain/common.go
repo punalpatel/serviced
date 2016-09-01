@@ -18,9 +18,9 @@ import (
 )
 
 type MinMax struct {
-	Min     int
-	Max     int
-	Default int
+	Min     int `json:",omitempty"`
+	Max     int `json:",omitempty"`
+	Default int `json:",omitempty"`
 }
 
 type Command struct {
