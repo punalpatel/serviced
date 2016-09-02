@@ -26,7 +26,9 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
@@ -64,7 +66,35 @@ func (inst instances) Len() int           { return len(inst) }
 func (inst instances) Less(i, j int) bool { return inst[i].InstanceID < inst[j].InstanceID }
 func (inst instances) Swap(i, j int)      { inst[i], inst[j] = inst[j], inst[i] }
 
-// ServiceNode is the zookeeper client Node for services
+// The data from the service.Service object we want to store in ZK. Marshalling
+// of the trimmed object is faster than the full Service object.
+type ServiceData struct {
+	ID              string
+	Name            string
+	Version         string
+	DesiredState    int
+	Instances       int
+	ChangeOptions   []string
+	Startup         string
+	Environment     []string
+	ImageID         string
+	LogConfigs      []servicedefinition.LogConfig
+	HostPolicy      servicedefinition.HostPolicy
+	Privileged      bool
+	Endpoints       []service.ServiceEndpoint
+	Volumes         []servicedefinition.Volume
+	Snapshot        servicedefinition.SnapshotCommands
+	RAMCommitment   utils.EngNotation
+	CPUCommitment   uint64
+	HealthChecks    map[string]health.HealthCheck // A health check for the service.
+	MemoryLimit     float64
+	CPUShares       int64
+	ParentServiceID string
+	Hostname        string
+	datastore.VersionedEntity
+}
+
+// ServiceNode is the zookeeper client Node for services read from zk.
 type ServiceNode struct {
 	*service.Service
 	Locked  bool
@@ -76,6 +106,19 @@ func (node *ServiceNode) Version() interface{} { return node.version }
 
 // SetVersion implements client.Node
 func (node *ServiceNode) SetVersion(version interface{}) { node.version = version }
+
+// ServiceNode is the zookeeper client Node stored in zk.
+type ServiceNodeStored struct {
+	*ServiceData
+	Locked  bool
+	version interface{}
+}
+
+// Version implements client.Node
+func (node *ServiceNodeStored) Version() interface{} { return node.version }
+
+// SetVersion implements client.Node
+func (node *ServiceNodeStored) SetVersion(version interface{}) { node.version = version }
 
 // ServiceHandler handles all non-zookeeper interactions required by the service
 type ServiceHandler interface {
@@ -377,13 +420,13 @@ func StartService(conn client.Connection, serviceID string) error {
 		defer (*ctx).Metrics().Stop((*ctx).Metrics().Start("zzk.StartService()"))
 	}
 	glog.Infof("Scheduling service %s to start", serviceID)
-	var node ServiceNode
+	var node ServiceNodeStored
 	path := servicepath(serviceID)
 
 	if err := conn.Get(path, &node); err != nil {
 		return err
 	}
-	node.Service.DesiredState = int(service.SVCRun)
+	node.ServiceData.DesiredState = int(service.SVCRun)
 	return conn.Set(path, &node)
 }
 
@@ -393,13 +436,13 @@ func StopService(conn client.Connection, serviceID string) error {
 		defer (*ctx).Metrics().Stop((*ctx).Metrics().Start("zzk.StopService()"))
 	}
 	glog.Infof("Scheduling service %s to stop", serviceID)
-	var node ServiceNode
+	var node ServiceNodeStored
 	path := servicepath(serviceID)
 
 	if err := conn.Get(path, &node); err != nil {
 		return err
 	}
-	node.Service.DesiredState = int(service.SVCStop)
+	node.ServiceData.DesiredState = int(service.SVCStop)
 	return conn.Set(path, &node)
 }
 
@@ -445,7 +488,7 @@ func UpdateService(conn client.Connection, svcData service.Service, setLockOnCre
 	}
 	conn.SetContext(ctx)
 	// svc is the service to be marshalled into zookeeper
-	svc := &service.Service{
+	svc := &ServiceData{
 		ID:              svcData.ID,
 		Name:            svcData.Name,
 		Startup:         svcData.Startup,
@@ -469,13 +512,13 @@ func UpdateService(conn client.Connection, svcData service.Service, setLockOnCre
 		Hostname:        svcData.Hostname,
 	}
 	svcNodePath := servicepath(svc.ID)
-	svcNode := ServiceNode{Service: &service.Service{}}
+	svcNode := ServiceNodeStored{ServiceData: &ServiceData{}}
 
 	if err := conn.Get(svcNodePath, &svcNode); err == client.ErrNoNode {
 		// the node does not exist, so create it
 		// setLockOnCreate sets the lock as the node is created.
 		svcNode.Locked = setLockOnCreate
-		svcNode.Service = svc
+		svcNode.ServiceData = svc
 		if err := conn.Create(svcNodePath, &svcNode); err != nil {
 			glog.Errorf("Could not create node at %s: %s", svcNodePath, err)
 			return err
@@ -489,7 +532,7 @@ func UpdateService(conn client.Connection, svcData service.Service, setLockOnCre
 	if setLockOnUpdate {
 		svcNode.Locked = true
 	}
-	svcNode.Service = svc
+	svcNode.ServiceData = svc
 	if err := conn.Set(svcNodePath, &svcNode); err != nil {
 		glog.Errorf("Could not update node for service %s: %s", svc.ID, err)
 		return err
