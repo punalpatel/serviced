@@ -17,6 +17,28 @@ import (
 	"net/rpc"
 )
 
+// RPC Calls that require special authentication
+const NonAuthenticatingCalls = []string{"AuthenticateHost"}
+const AdmingRequiredCalls = []string{}
+
+func requiresAuthentication(callName string) bool {
+	for _, name := range NonAuthenticatingCalls {
+		if name == callName {
+			return true
+		}
+	}
+	return false
+}
+
+func requiresAdmin(callName string) bool {
+	for _, name := range AdmingRequiredCalls {
+		if name == callName {
+			return true
+		}
+	}
+	return false
+}
+
 // Server Codec
 type AuthServerCodec struct {
 	wrappedcodec rpc.ServerCodec
@@ -49,14 +71,24 @@ type AuthClientCodec struct {
 	wrappedcodec rpc.ClientCodec
 }
 
+type AuthClientRequestBody struct {
+	token        string
+	originalbody interface{}
+}
+
 func NewAuthClientCodec(codecToWrap rpc.ClientCodec) rpc.ClientCodec {
 	return AuthClientCodec{codecToWrap}
 }
 
 func (a AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
-	// TODO: Wrap the body up with the token
-
-	return a.wrappedcodec.WriteRequest(r, body)
+	newBody := AuthClientRequestBody{originalbody: body}
+	if requiresAuthentication(r.ServiceMethod) {
+		token := auth.AuthToken()
+		newBody.token = token
+	}
+	// We can't do this because we have no way of checking both the method name and the token at the same time on the server side, without going much, much further with this codec
+	//  One thing we could do is pass a different io.ReadWriteCloser to the wrappedcodec and then do stuff the result.
+	return a.wrappedcodec.WriteRequest(r, newBody)
 }
 
 func (a AuthClientCodec) ReadResponseHeader(r *rpc.Response) error {
