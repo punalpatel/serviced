@@ -90,17 +90,26 @@ func (_m *ClientInterface) GetActiveHostIDs() ([]string, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) AddHost(h host.Host) error {
+func (_m *ClientInterface) AddHost(h host.Host) ([]byte, error) {
 	ret := _m.Called(h)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(host.Host) error); ok {
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(host.Host) []byte); ok {
 		r0 = rf(h)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(host.Host) error); ok {
+		r1 = rf(h)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 func (_m *ClientInterface) UpdateHost(h host.Host) error {
 	ret := _m.Called(h)
