@@ -14,6 +14,8 @@
 package serviceconfigfile
 
 import (
+	"fmt"
+
 	"github.com/control-center/serviced/datastore"
 	"github.com/zenoss/elastigo/search"
 )
@@ -38,6 +40,7 @@ type storeImpl struct {
 //GetConfigFiles returns all Configuration Files in tenant service that have the given service path. The service path
 //is a "/" delimited string of the service name hierarchy, i.e /Zenoss.Core/Zproxy
 func (s *storeImpl) GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*SvcConfigFile, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("GetConfigFiles: svcPath=%s", svcPath)))
 	search := search.Search("controlplane").Type(kind).Filter(
 		"and",
 		search.Filter().Terms("ServiceTenantID", tenantID),
