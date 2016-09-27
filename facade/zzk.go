@@ -14,12 +14,12 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
 	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/control-center/serviced/datastore"
 )
 
 type ZZK interface {

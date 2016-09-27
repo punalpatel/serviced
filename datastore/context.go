@@ -26,14 +26,21 @@ type Context interface {
 	Metrics() *metrics.Metrics
 }
 
+var savedDriver Driver
+
 //Register a driver to use for the context
 func Register(driver Driver) {
+	savedDriver = driver
 	ctx = newCtx(driver)
 }
 
 //Get returns the global Context
 func Get() Context {
 	return ctx
+}
+
+func GetNew() Context {
+	return newCtx(savedDriver)
 }
 
 var ctx Context

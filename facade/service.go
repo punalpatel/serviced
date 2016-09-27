@@ -24,8 +24,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/zenoss/logri"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/logri"
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
@@ -1196,7 +1196,7 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 
 	// Get a new context object object so that the metrics are specific to just this call.
-	ctx = datastore.Get()
+	ctx = datastore.GetNew()
 
 	ctx.Metrics().Enabled = true
 	defer func() {
@@ -1728,7 +1728,7 @@ func (f *Facade) fillOutServices(ctx datastore.Context, svcs []service.Service) 
 }
 
 func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) error {
-        defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("fillServiceAddr")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("fillServiceAddr")))
 	store := addressassignment.NewStore()
 
 	for idx := range svc.Endpoints {
