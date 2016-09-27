@@ -335,6 +335,7 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 // validateServiceName ensures that the service does not collide with a
 // service at the same path
 func (f *Facade) validateServiceName(ctx datastore.Context, svc *service.Service) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("validateServiceName")))
 	store := f.serviceStore
 	if svc.ParentServiceID != "" {
 		psvc, err := store.Get(ctx, svc.ParentServiceID)
@@ -357,6 +358,7 @@ func (f *Facade) validateServiceName(ctx datastore.Context, svc *service.Service
 
 // validateServiceTenant ensures the services are on the same tenant
 func (f *Facade) validateServiceTenant(ctx datastore.Context, serviceA, serviceB string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("validateServiceTenant")))
 	if serviceA == "" || serviceB == "" {
 		return ErrTenantDoesNotMatch
 	}
@@ -379,6 +381,7 @@ func (f *Facade) validateServiceTenant(ctx datastore.Context, serviceA, serviceB
 // validateServiceStart determines whether the service can actually be set to
 // start.
 func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Service) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("validateServiceStart")))
 	// ensure that all endpoints are available
 	for _, ep := range svc.Endpoints {
 		if ep.IsConfigurable() {
@@ -923,6 +926,7 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequ
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
 func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("GetTenantID")))
 	glog.V(3).Infof("Facade.GetTenantId: %s", serviceID)
 	gs := func(id string) (service.Service, error) {
 		return f.getService(ctx, id)

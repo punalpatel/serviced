@@ -134,6 +134,7 @@ func (f *Facade) GetServiceAddressAssignmentsByPort(ctx datastore.Context, port 
 
 // GetAddressAssignmentsByEndpoint returns the address assignment by serviceID and endpoint name
 func (f *Facade) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID, endpointName string) (*addressassignment.AddressAssignment, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("FindAssignmentByServiceEndpoint")))
 	store := addressassignment.NewStore()
 	return store.FindAssignmentByServiceEndpoint(ctx, serviceID, endpointName)
 }
