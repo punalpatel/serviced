@@ -235,25 +235,26 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, serviceID string, c
 
 // fillServiceConfigs sets the configuration files on the service
 func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("fillServiceConfigs")))
-	tenantID, servicePath, err := f.getServicePath(ctx, svc.ID)
-	if err != nil {
-		return err
-	}
-	svcConfigFiles, err := f.configStore.GetConfigFiles(ctx, tenantID, servicePath)
-	if err != nil {
-		glog.Errorf("Could not load existing configs for service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
-	}
-	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
-	for _, configFile := range svc.OriginalConfigs {
-		svc.ConfigFiles[configFile.Filename] = configFile
-		glog.V(1).Infof("Copying original config file %s from service %s (%s)", configFile.Filename, svc.Name, svc.ID)
-	}
-	for _, svcConfigFile := range svcConfigFiles {
-		filename, configFile := svcConfigFile.ConfFile.Filename, svcConfigFile.ConfFile
-		svc.ConfigFiles[filename] = configFile
-		glog.V(1).Infof("Loading config file %s for service %s (%s)", filename, svc.Name, svc.ID)
-	}
 	return nil
+	//defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("fillServiceConfigs")))
+	//tenantID, servicePath, err := f.getServicePath(ctx, svc.ID)
+	//if err != nil {
+	//	return err
+	//}
+	//svcConfigFiles, err := f.configStore.GetConfigFiles(ctx, tenantID, servicePath)
+	//if err != nil {
+	//	glog.Errorf("Could not load existing configs for service %s (%s): %s", svc.Name, svc.ID, err)
+	//	return err
+	//}
+	//svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
+	//for _, configFile := range svc.OriginalConfigs {
+	//	svc.ConfigFiles[configFile.Filename] = configFile
+	//	glog.V(1).Infof("Copying original config file %s from service %s (%s)", configFile.Filename, svc.Name, svc.ID)
+	//}
+	//for _, svcConfigFile := range svcConfigFiles {
+	//	filename, configFile := svcConfigFile.ConfFile.Filename, svcConfigFile.ConfFile
+	//	svc.ConfigFiles[filename] = configFile
+	//	glog.V(1).Infof("Loading config file %s for service %s (%s)", filename, svc.Name, svc.ID)
+	//}
+	//return nil
 }

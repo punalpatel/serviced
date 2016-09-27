@@ -27,6 +27,7 @@ type Metrics struct {
 	Enabled  bool
 	Registry gometrics.Registry
 	Timers   map[string]gometrics.Timer
+	GroupName string
 }
 
 func NewMetrics() *Metrics {
@@ -97,6 +98,7 @@ func (m *Metrics) Log() {
 			t := metric.Snapshot()
 			ps := t.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999})
 			log.WithFields(logrus.Fields{
+				"group":  m.GroupName,
 				"count":  t.Count(),
 				"sum":    padUnits(14, float64(t.Sum())/du, 2, units),
 				"min":    padUnits(14, float64(t.Min())/du, 2, units),

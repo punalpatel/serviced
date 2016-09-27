@@ -1196,7 +1196,7 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 
 	// Get a new context object object so that the metrics are specific to just this call.
-	ctx = datastore.GetNew()
+	ctx = datastore.GetNew("StartService")
 
 	ctx.Metrics().Enabled = true
 	defer func() {
@@ -1719,6 +1719,7 @@ func (f *Facade) fillOutService(ctx datastore.Context, svc *service.Service) err
 }
 
 func (f *Facade) fillOutServices(ctx datastore.Context, svcs []service.Service) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("fillOutServices")))
 	for i := range svcs {
 		if err := f.fillOutService(ctx, &svcs[i]); err != nil {
 			return err

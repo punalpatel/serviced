@@ -39,8 +39,11 @@ func Get() Context {
 	return ctx
 }
 
-func GetNew() Context {
-	return newCtx(savedDriver)
+func GetNew(groupName string) Context {
+	var someCtx Context
+	someCtx = newCtx(savedDriver)
+	someCtx.Metrics().GroupName = groupName
+	return someCtx
 }
 
 var ctx Context

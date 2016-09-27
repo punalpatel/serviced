@@ -107,11 +107,13 @@ func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
 
 // GetServices returns all services
 func (s *storeImpl) GetServices(ctx datastore.Context) ([]Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore_GetServices")))
 	return query(ctx, "_exists_:ID")
 }
 
 // GetUpdatedServices returns all services updated since "since" time.Duration ago
 func (s *storeImpl) GetUpdatedServices(ctx datastore.Context, since time.Duration) ([]Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore_GetUpdatedServices")))
 	q := datastore.NewQuery(ctx)
 	t0 := time.Now().Add(-since).Format(time.RFC3339)
 	elasticQuery := search.Query().Range(search.Range().Field("UpdatedAt").From(t0)).Search("_exists_:ID")
@@ -125,6 +127,7 @@ func (s *storeImpl) GetUpdatedServices(ctx datastore.Context, since time.Duratio
 
 // GetTaggedServices returns services with the given tags
 func (s *storeImpl) GetTaggedServices(ctx datastore.Context, tags ...string) ([]Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore_GetTaggedServices")))
 	if len(tags) == 0 {
 		return nil, errors.New("empty tags not allowed")
 	}
@@ -134,6 +137,7 @@ func (s *storeImpl) GetTaggedServices(ctx datastore.Context, tags ...string) ([]
 
 // GetServicesByPool returns services with the given pool id
 func (s *storeImpl) GetServicesByPool(ctx datastore.Context, poolID string) ([]Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore_GetServicesByPool")))
 	id := strings.TrimSpace(poolID)
 	if id == "" {
 		return nil, errors.New("empty poolID not allowed")
@@ -150,6 +154,7 @@ func (s *storeImpl) GetServicesByPool(ctx datastore.Context, poolID string) ([]S
 
 // GetServicesByDeployment returns services with the given deployment id
 func (s *storeImpl) GetServicesByDeployment(ctx datastore.Context, deploymentID string) ([]Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore_GetServicesByDeployment")))
 	id := strings.TrimSpace(deploymentID)
 	if id == "" {
 		return nil, errors.New("empty deploymentID not allowed")
@@ -215,6 +220,7 @@ func (s *storeImpl) FindChildService(ctx datastore.Context, deploymentID, parent
 
 // FindTenantByDeployment returns the tenant service for a given deployment id and service name
 func (s *storeImpl) FindTenantByDeploymentID(ctx datastore.Context, deploymentID, name string) (*Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore_FindTenantByDeploymentID")))
 	if deploymentID = strings.TrimSpace(deploymentID); deploymentID == "" {
 		return nil, errors.New("empty deployment ID not allowed")
 	} else if name = strings.TrimSpace(name); name == "" {
