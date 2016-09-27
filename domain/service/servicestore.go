@@ -79,6 +79,7 @@ type storeImpl struct {
 
 // Put adds or updates a Service
 func (s *storeImpl) Put(ctx datastore.Context, svc *Service) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore.Put")))
 	//No need to store ConfigFiles
 	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
 
@@ -87,7 +88,7 @@ func (s *storeImpl) Put(ctx datastore.Context, svc *Service) error {
 
 // Get a Service by id. Return ErrNoSuchEntity if not found
 func (s *storeImpl) Get(ctx datastore.Context, id string) (*Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore.Get: serviceID=%s", id)))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore.Get")))
 	svc := &Service{}
 	if err := s.ds.Get(ctx, Key(id), svc); err != nil {
 		return nil, err
@@ -165,7 +166,7 @@ func (s *storeImpl) GetServicesByDeployment(ctx datastore.Context, deploymentID 
 
 // GetChildServices returns services that are children of the given parent service id
 func (s *storeImpl) GetChildServices(ctx datastore.Context, parentID string) ([]Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore.GetChildServices: parentID=%s", parentID)))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore.GetChildServices")))
 	id := strings.TrimSpace(parentID)
 	if id == "" {
 		return nil, errors.New("empty parent service id not allowed")
@@ -181,7 +182,7 @@ func (s *storeImpl) GetChildServices(ctx datastore.Context, parentID string) ([]
 }
 
 func (s *storeImpl) FindChildService(ctx datastore.Context, deploymentID, parentID, serviceName string) (*Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore.FindChildService: parentID=%s", parentID)))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("ServiceStore.FindChildService")))
 	parentID = strings.TrimSpace(parentID)
 
 	if deploymentID = strings.TrimSpace(deploymentID); deploymentID == "" {

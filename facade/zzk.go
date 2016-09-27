@@ -19,10 +19,11 @@ import (
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
 	zkservice "github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/datastore"
 )
 
 type ZZK interface {
-	UpdateService(tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
+	UpdateService(ctx datastore.Context, tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
 	RemoveService(poolID, serviceID string) error
 	RemoveServiceEndpoints(serviceID string) error
 	RemoveTenantExports(tenantID string) error
@@ -48,7 +49,7 @@ type ZZK interface {
 	GetHostStates(poolID, hostID string) ([]zkservice.State, error)
 	GetServiceState(poolID, serviceID string, instanceID int) (*zkservice.State, error)
 	StopServiceInstance(poolID, serviceID string, instanceID int) error
-	StopServiceInstances(poolID, serviceID string) error
+	StopServiceInstances(ctx datastore.Context, poolID, serviceID string) error
 	SendDockerAction(poolID, serviceID string, instanceID int, command string, args []string) error
 	GetServiceStateIDs(poolID, serviceID string) ([]zkservice.StateRequest, error)
 }

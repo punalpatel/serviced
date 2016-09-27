@@ -181,7 +181,7 @@ func (f *Facade) getServicePath(ctx datastore.Context, serviceID string) (tenant
 // updateServiceConfigs adds or updates configuration files.  If forceDelete is
 // set to true, then remove any extranneous service configurations.
 func (f *Facade) updateServiceConfigs(ctx datastore.Context, serviceID string, configFiles []servicedefinition.ConfigFile, forceDelete bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("updateServiceConfigs: serviceID=%s", serviceID)))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("updateServiceConfigs")))
 	tenantID, servicePath, err := f.getServicePath(ctx, serviceID)
 	if err != nil {
 		return err
@@ -234,7 +234,7 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, serviceID string, c
 
 // fillServiceConfigs sets the configuration files on the service
 func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("fillServiceConfigs: serviceID=%s", svc.ID)))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("fillServiceConfigs")))
 	tenantID, servicePath, err := f.getServicePath(ctx, svc.ID)
 	if err != nil {
 		return err
