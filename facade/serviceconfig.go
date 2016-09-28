@@ -16,7 +16,6 @@ package facade
 import (
 	"errors"
 	"fmt"
-	"path"
 	"reflect"
 
 	log "github.com/Sirupsen/logrus"
@@ -163,20 +162,38 @@ func (f *Facade) DeleteServiceConfig(ctx datastore.Context, fileID string) error
 // TODO: update function to include deploymentID in the service path
 func (f *Facade) getServicePath(ctx datastore.Context, serviceID string) (tenantID string, servicePath string, err error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("getServicePath")))
-	store := f.serviceStore
-	svc, err := store.Get(ctx, serviceID)
-	if err != nil {
-		glog.Errorf("Could not look up service %s: %s", serviceID, err)
-		return "", "", err
+	var ok bool
+	tenantID, servicePath, ok = lookUpServicePath(serviceID)
+	if ok {
+		return tenantID, servicePath, nil
 	}
-	if svc.ParentServiceID == "" {
-		return serviceID, "/" + serviceID, nil
-	}
-	tenantID, servicePath, err = f.getServicePath(ctx, svc.ParentServiceID)
+
+	_, err = f.GetTenantID(ctx, serviceID)
 	if err != nil {
 		return "", "", err
 	}
-	return tenantID, path.Join(servicePath, serviceID), nil
+	tenantID, servicePath, ok = lookUpServicePath(serviceID)
+	if ok {
+		return tenantID, servicePath, nil
+	}
+
+	err = fmt.Errorf("Could not look up service %s", serviceID)
+	return "", "", err
+
+	//store := f.serviceStore
+	//svc, err := store.Get(ctx, serviceID)
+	//if err != nil {
+	//	glog.Errorf("Could not look up service %s: %s", serviceID, err)
+	//	return "", "", err
+	//}
+	//if svc.ParentServiceID == "" {
+	//	return serviceID, "/" + serviceID, nil
+	//}
+	//tenantID, servicePath, err = f.getServicePath(ctx, svc.ParentServiceID)
+	//if err != nil {
+	//	return "", "", err
+	//}
+	//return tenantID, path.Join(servicePath, serviceID), nil
 }
 
 // updateServiceConfigs adds or updates configuration files.  If forceDelete is
@@ -235,26 +252,28 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, serviceID string, c
 
 // fillServiceConfigs sets the configuration files on the service
 func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service) error {
-	return nil
-	//defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("fillServiceConfigs")))
-	//tenantID, servicePath, err := f.getServicePath(ctx, svc.ID)
-	//if err != nil {
-	//	return err
-	//}
-	//svcConfigFiles, err := f.configStore.GetConfigFiles(ctx, tenantID, servicePath)
-	//if err != nil {
-	//	glog.Errorf("Could not load existing configs for service %s (%s): %s", svc.Name, svc.ID, err)
-	//	return err
-	//}
-	//svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
-	//for _, configFile := range svc.OriginalConfigs {
-	//	svc.ConfigFiles[configFile.Filename] = configFile
-	//	glog.V(1).Infof("Copying original config file %s from service %s (%s)", configFile.Filename, svc.Name, svc.ID)
-	//}
-	//for _, svcConfigFile := range svcConfigFiles {
-	//	filename, configFile := svcConfigFile.ConfFile.Filename, svcConfigFile.ConfFile
-	//	svc.ConfigFiles[filename] = configFile
-	//	glog.V(1).Infof("Loading config file %s for service %s (%s)", filename, svc.Name, svc.ID)
-	//}
 	//return nil
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("fillServiceConfigs")))
+	tenantID, servicePath, err := f.getServicePath(ctx, svc.ID)
+	if err != nil {
+		return err
+	}
+
+	glog.Infof("fillServiceConfigs: for svc=%s tenantID=%s servicePath=%s", svc.ID, tenantID, servicePath)
+	svcConfigFiles, err := f.configStore.GetConfigFiles(ctx, tenantID, servicePath)
+	if err != nil {
+		glog.Errorf("Could not load existing configs for service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
+	for _, configFile := range svc.OriginalConfigs {
+		svc.ConfigFiles[configFile.Filename] = configFile
+		glog.V(1).Infof("Copying original config file %s from service %s (%s)", configFile.Filename, svc.Name, svc.ID)
+	}
+	for _, svcConfigFile := range svcConfigFiles {
+		filename, configFile := svcConfigFile.ConfFile.Filename, svcConfigFile.ConfFile
+		svc.ConfigFiles[filename] = configFile
+		glog.V(1).Infof("Loading config file %s for service %s (%s)", filename, svc.Name, svc.ID)
+	}
+	return nil
 }

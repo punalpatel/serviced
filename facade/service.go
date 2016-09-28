@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -182,6 +183,9 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 // UpdateService updates an existing service; return error if the service does
 // not exist.
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error {
+
+	// FIXME: Can we reparent a service on update? If so, need to clear servicePath cache
+
 	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
 		return err
@@ -195,6 +199,9 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 // MigrateService migrates an existing service; return error if the service does
 // not exist
 func (f *Facade) MigrateService(ctx datastore.Context, svc service.Service) error {
+
+	// FIXME: Can we reparent a service on migrate? If so, need to clear servicePath cache
+
 	tenantID, err := f.GetTenantID(ctx, svc.ID)
 	if err != nil {
 		return err
@@ -598,6 +605,9 @@ func (f *Facade) validateServiceMigration(ctx datastore.Context, svcs []service.
 }
 
 func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
+
+	// FIXME: need to clear servicePath cache
+
 	tenantID, err := f.GetTenantID(ctx, id)
 	if err != nil {
 		glog.Errorf("Could not get tenant of service %s: %s", id, err)
@@ -787,7 +797,7 @@ func (f *Facade) evaluateService(ctx datastore.Context, svc *service.Service, in
 		}
 		return svc, err
 	}
-
+	glog.Infof("evaluateServce: serviceID=%s, instanceID=%d", svc.ID, instanceID)
 	return svc.Evaluate(getService, getServiceChild, instanceID)
 }
 
@@ -1087,9 +1097,9 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		default:
 			svc.DesiredState = int(desiredState)
 		}
-		if err := f.fillServiceConfigs(ctx, svc); err != nil {
-			return err
-		}
+		//if err := f.fillServiceConfigs(ctx, svc); err != nil {
+		//	return err
+		//}
 		if err := f.updateService(ctx, tenantID, *svc, false, false); err != nil {
 			glog.Errorf("Facade.ScheduleService update service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
@@ -1674,38 +1684,39 @@ type treenode struct {
 	children []*treenode
 }
 
-// getServiceTree creates the service hierarchy tree containing serviceId, serviceList is used to create the tree.
-// Returns a pointer the root of the service hierarchy
-func (f *Facade) getServiceTree(serviceId string, servicesList *[]service.Service) *treenode {
-	glog.V(2).Infof(" getServiceTree = %s", serviceId)
-	servicesMap := make(map[string]*treenode)
-	for _, svc := range *servicesList {
-		servicesMap[svc.ID] = &treenode{
-			svc.ID,
-			svc.ParentServiceID,
-			[]*treenode{},
-		}
-	}
-
-	// second time through builds our tree
-	root := treenode{"root", "", []*treenode{}}
-	for _, svc := range *servicesList {
-		node := servicesMap[svc.ID]
-		parent, found := servicesMap[svc.ParentServiceID]
-		// no parent means f node belongs to root
-		if !found {
-			parent = &root
-		}
-		parent.children = append(parent.children, node)
-	}
-
-	// now walk up the tree, then back down capturing all siblings for f service ID
-	topService := servicesMap[serviceId]
-	for len(topService.parent) != 0 {
-		topService = servicesMap[topService.parent]
-	}
-	return topService
-}
+// FIXME - remove; this method is not used
+//// getServiceTree creates the service hierarchy tree containing serviceId, serviceList is used to create the tree.
+//// Returns a pointer the root of the service hierarchy
+//func (f *Facade) getServiceTree(serviceId string, servicesList *[]service.Service) *treenode {
+//	glog.V(2).Infof(" getServiceTree = %s", serviceId)
+//	servicesMap := make(map[string]*treenode)
+//	for _, svc := range *servicesList {
+//		servicesMap[svc.ID] = &treenode{
+//			svc.ID,
+//			svc.ParentServiceID,
+//			[]*treenode{},
+//		}
+//	}
+//
+//	// second time through builds our tree
+//	root := treenode{"root", "", []*treenode{}}
+//	for _, svc := range *servicesList {
+//		node := servicesMap[svc.ID]
+//		parent, found := servicesMap[svc.ParentServiceID]
+//		// no parent means f node belongs to root
+//		if !found {
+//			parent = &root
+//		}
+//		parent.children = append(parent.children, node)
+//	}
+//
+//	// now walk up the tree, then back down capturing all siblings for f service ID
+//	topService := servicesMap[serviceId]
+//	for len(topService.parent) != 0 {
+//		topService = servicesMap[topService.parent]
+//	}
+//	return topService
+//}
 
 func (f *Facade) fillOutService(ctx datastore.Context, svc *service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("fillOutService")))
@@ -1869,49 +1880,130 @@ func (f *Facade) GetInstanceMemoryStats(startTime time.Time, instances ...metric
 func lookUpTenant(svcID string) (string, bool) {
 	tenanIDMutex.RLock()
 	defer tenanIDMutex.RUnlock()
-	tID, found := tenantIDs[svcID]
-	return tID, found
+	//glog.Infof("lookUpTenant %s, cache=%v", svcID, tenantIDs)
+	service, found := tenantIDs[svcID]
+	return service.tenantID, found
 }
 
-func updateTenants(tenantID string, svcIDs ...string) {
+func lookUpServicePath(svcID string) (string, string, bool) {
+	tenanIDMutex.RLock()
+	defer tenanIDMutex.RUnlock()
+	//glog.Infof("lookUpServicePath %s, cache=%v", svcID, tenantIDs)
+	service, found := tenantIDs[svcID]
+	return service.tenantID, service.servicePath, found
+}
+
+func updateTenants(tenantID string, svcPaths []serviceInfo) {
+	//glog.Infof("updateTenants %s", tenantID)
 	tenanIDMutex.Lock()
 	defer tenanIDMutex.Unlock()
-	for _, id := range svcIDs {
-		tenantIDs[id] = tenantID
+	//for _, path := range svcPaths {
+	//	path.tenantID = tenantID
+	//}
+	for _, path := range svcPaths {
+		tenantIDs[path.serviceID] = path
 	}
 }
 
 // getTenantID calls its GetService function to get the tenantID
 func getTenantID(svcID string, gs service.GetService) (string, error) {
+	//glog.Infof("getTenantID %s", svcID)
 	if tID, found := lookUpTenant(svcID); found {
+		//glog.Infof("getTenantID %s, found cached value", svcID)
 		return tID, nil
 	}
 
-	svc, err := gs(svcID)
+	items := make([]serviceInfo, 0)
+	tenantID, _, err := getServicePath(svcID, &items, gs)
 	if err != nil {
+		//glog.Infof("getTenantID %s, err=%s", svcID, err)
 		return "", err
 	}
-	visitedIDs := make([]string, 0)
-	visitedIDs = append(visitedIDs, svc.ID)
-	for svc.ParentServiceID != "" {
-		if tID, found := lookUpTenant(svc.ParentServiceID); found {
-			return tID, nil
-		}
-		svc, err = gs(svc.ParentServiceID)
-		if err != nil {
-			return "", err
-		}
-		visitedIDs = append(visitedIDs, svc.ID)
-	}
 
-	updateTenants(svc.ID, visitedIDs...)
-	return svc.ID, nil
+	//glog.Infof("getTenantID %s, updateTenants(%s, %d)", svcID, tenantID, len(items))
+	updateTenants(tenantID, items)
+	return tenantID, nil
+
+	//svc, err := gs(svcID)
+	//if err != nil {
+	//	return "", err
+	//}
+
+	//visitedIDs := make([]string, 0)
+	//visitedIDs = append(visitedIDs, svc.ID)
+	//for svc.ParentServiceID != "" {
+	//	if tID, found := lookUpTenant(svc.ParentServiceID); found {
+	//		return tID, nil
+	//	}
+	//	svc, err = gs(svc.ParentServiceID)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	visitedIDs = append(visitedIDs, svc.ID)
+	//}
+	//
+	//updateTenants(svc.ID, visitedIDs...)
+	//return svc.ID, nil
 }
 
+func getServicePath(serviceID string, items *[]serviceInfo, gs service.GetService) (tenantID string, item serviceInfo, err error) {
+	svc, err := gs(serviceID)
+	if err != nil {
+		glog.Errorf("Could not look up service %s: %s", serviceID, err)
+		return "", serviceInfo{}, err
+	}
+	if svc.ParentServiceID == "" {
+		item := serviceInfo{
+			serviceID:   serviceID,
+			//parentID:    "",
+			tenantID:    serviceID,
+			servicePath: "/" + serviceID,
+		}
+		*items = append(*items, item)
+		return serviceID, item, nil
+	}
+
+	var parentItem serviceInfo
+	tenantID, parentItem, err = getServicePath(svc.ParentServiceID, items, gs)
+	if err != nil {
+		return "", serviceInfo{}, err
+	}
+
+	item = serviceInfo{
+		serviceID:   serviceID,
+		//parentID:    svc.ParentServiceID,
+		tenantID:    tenantID,
+		servicePath: path.Join(parentItem.servicePath, serviceID),
+	}
+	*items = append(*items, item)
+	return tenantID, item, nil
+}
+
+// FIXME - just for short-term unit-testing
+func (f *Facade) GetServicePath(ctx datastore.Context, serviceID string) (string, string, bool) {
+	return lookUpServicePath(serviceID)
+}
+
+type serviceInfo struct {
+	serviceID   string
+	//parentID    string
+	tenantID    string
+	servicePath string
+}
+
+// FIXME: move tenantIDs into Facade to facilitate unit-testing
+func (f *Facade) ResetCache() {
+	tenanIDMutex.Lock()
+	defer tenanIDMutex.Unlock()
+	tenantIDs    = make(map[string]serviceInfo)
+}
+
+// FIXME: rename if this works
 var (
-	tenantIDs    = make(map[string]string)
+	tenantIDs    = make(map[string]serviceInfo)
 	tenanIDMutex = sync.RWMutex{}
 )
+
 
 // Get all the service details
 func (f *Facade) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {

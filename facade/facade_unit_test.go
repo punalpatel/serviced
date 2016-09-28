@@ -27,6 +27,7 @@ import (
 	configmocks "github.com/control-center/serviced/domain/serviceconfigfile/mocks"
 	templatemocks "github.com/control-center/serviced/domain/servicetemplate/mocks"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/metrics"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
@@ -53,7 +54,10 @@ func (ft *FacadeUnitTest) SetUpSuite(c *C) {
 }
 
 func (ft *FacadeUnitTest) SetUpTest(c *C) {
+	ft.Facade.ResetCache()
+
 	ft.ctx = &datastoremocks.Context{}
+	ft.ctx.On("Metrics").Return(metrics.NewMetrics())
 
 	ft.dfs = &dfsmocks.DFS{}
 	ft.Facade.SetDFS(ft.dfs)
