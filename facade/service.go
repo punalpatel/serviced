@@ -1209,13 +1209,13 @@ func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleService
 	ctx = datastore.GetNew("StartService")
 
 	ctx.Metrics().Enabled = true
-	defer func() {
-		ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("StartService")))
+	defer func(ssTimer *metrics.MetricTimer) {
+		ctx.Metrics().Stop(ssTimer)
 		metricsLogger := logri.GetLogger("metrics")
 		metricsLogger.SetLevel(log.DebugLevel, true)
 		ctx.Metrics().Log()
 		metricsLogger.SetLevel(log.DebugLevel, false)
-	}()
+	}(ctx.Metrics().Start(fmt.Sprintf("StartService")))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRun)
 }
 
@@ -1954,7 +1954,7 @@ func getServicePath(serviceID string, items *[]serviceInfo, gs service.GetServic
 	}
 	if svc.ParentServiceID == "" {
 		item := serviceInfo{
-			serviceID:   serviceID,
+			serviceID: serviceID,
 			//parentID:    "",
 			tenantID:    serviceID,
 			servicePath: "/" + serviceID,
@@ -1970,7 +1970,7 @@ func getServicePath(serviceID string, items *[]serviceInfo, gs service.GetServic
 	}
 
 	item = serviceInfo{
-		serviceID:   serviceID,
+		serviceID: serviceID,
 		//parentID:    svc.ParentServiceID,
 		tenantID:    tenantID,
 		servicePath: path.Join(parentItem.servicePath, serviceID),
@@ -1985,7 +1985,7 @@ func (f *Facade) GetServicePath(ctx datastore.Context, serviceID string) (string
 }
 
 type serviceInfo struct {
-	serviceID   string
+	serviceID string
 	//parentID    string
 	tenantID    string
 	servicePath string
@@ -1995,7 +1995,7 @@ type serviceInfo struct {
 func (f *Facade) ResetCache() {
 	tenanIDMutex.Lock()
 	defer tenanIDMutex.Unlock()
-	tenantIDs    = make(map[string]serviceInfo)
+	tenantIDs = make(map[string]serviceInfo)
 }
 
 // FIXME: rename if this works
@@ -2003,7 +2003,6 @@ var (
 	tenantIDs    = make(map[string]serviceInfo)
 	tenanIDMutex = sync.RWMutex{}
 )
-
 
 // Get all the service details
 func (f *Facade) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {

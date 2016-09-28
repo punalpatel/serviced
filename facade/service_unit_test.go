@@ -164,7 +164,8 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForGrandchildApp(c *C) {
 	expectedPath = path.Join("/", parentID)
 	expectedPath = path.Join(expectedPath, childID)
 	expectedPath = path.Join(expectedPath, grandchildID2)
-	c.Assert(servicePath, Equals, expectedPath)}
+	c.Assert(servicePath, Equals, expectedPath)
+}
 
 func (ft *FacadeUnitTest) Test_GetTenantIDForGrandchildAppUsesCache(c *C) {
 	parentID := getRandomServiceID(c)

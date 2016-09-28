@@ -27,8 +27,8 @@ import (
 	configmocks "github.com/control-center/serviced/domain/serviceconfigfile/mocks"
 	templatemocks "github.com/control-center/serviced/domain/servicetemplate/mocks"
 	"github.com/control-center/serviced/facade"
-	"github.com/control-center/serviced/metrics"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
+	"github.com/control-center/serviced/metrics"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )

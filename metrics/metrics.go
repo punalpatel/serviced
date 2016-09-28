@@ -24,9 +24,9 @@ var (
  */
 type Metrics struct {
 	sync.Mutex
-	Enabled  bool
-	Registry gometrics.Registry
-	Timers   map[string]gometrics.Timer
+	Enabled   bool
+	Registry  gometrics.Registry
+	Timers    map[string]gometrics.Timer
 	GroupName string
 }
 
