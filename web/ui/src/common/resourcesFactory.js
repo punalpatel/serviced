@@ -307,6 +307,11 @@
                 method: GET,
                 url: id => `/api/v2/services/${id}`,
             },
+            updateService: {
+                method: PUT,
+                url: id => `/api/v2/services/${id}`,
+                payload: (id, service) => service
+            },
             getServiceChildren: {
                 method: GET,
                 url: id => `/api/v2/services/${id}/services`,
