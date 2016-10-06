@@ -40,6 +40,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"PUT", "/hosts/:hostId", gz(sc.checkAuth(restUpdateHost))},
 		rest.Route{"GET", "/hosts/:hostId/running", gz(sc.authorizedClient(restGetRunningForHost))},
 		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", gz(sc.authorizedClient(restKillRunning))},
+		rest.Route{"POST", "/hosts/:hostId/key", gz(sc.checkAuth(restResetHostKey))},
 
 		// Pools
 		rest.Route{"GET", "/pools/:poolId", gz(sc.checkAuth(restGetPool))},
@@ -130,6 +131,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/api/v2/services/:serviceId/monitoringprofile", gz(sc.checkAuth(restGetServiceMonitoringProfile))},
 		rest.Route{"GET", "/api/v2/services/:serviceId/publicendpoints", gz(sc.checkAuth(restGetServicePublicEndpoints))},
 		rest.Route{"GET", "/api/v2/services/:serviceId/ipassignments", gz(sc.checkAuth(restGetServiceIPAssignments))},
+		rest.Route{"GET", "/api/v2/services/:serviceId/exportendpoints", gz(sc.checkAuth(restGetServiceExportedEndpoints))},
 		rest.Route{"GET", "/api/v2/services/:serviceId/context", gz(sc.checkAuth(getServiceContext))},
 		rest.Route{"PUT", "/api/v2/services/:serviceId/context", gz(sc.checkAuth(putServiceContext))},
 		rest.Route{"GET", "/api/v2/statuses", gz(sc.checkAuth(restGetAggregateServices))},

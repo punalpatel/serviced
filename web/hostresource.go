@@ -326,6 +326,32 @@ func restGetServiceIPAssignments(w *rest.ResponseWriter, r *rest.Request, ctx *r
 	w.WriteJson(&addrs)
 }
 
+func restGetServiceExportedEndpoints(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if serviceID == "" {
+		restBadRequest(w, errors.New("serviceID must be specified for GET"))
+		return
+	}
+
+	values := r.URL.Query()
+	_, includeChildren := values["includeChildren"]
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	addrs, err := facade.GetServiceExportedEndpoints(dataCtx, serviceID, includeChildren)
+	if err != nil {
+		glog.Errorf("Could not look up address assignments: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(4).Infof("restGetServiceAddressAssignments: id %s, addressAssignmentsL %#v", serviceID, addrs)
+	w.WriteJson(&addrs)
+}
+
 // restGetAggregateServices provides aggregate service information
 func restGetAggregateServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	values := r.URL.Query()
@@ -530,6 +556,29 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	}
 	glog.V(0).Info("Removed host ", hostID)
 	w.WriteJson(&simpleResponse{"Removed host", hostsLinks()})
+}
+
+// restResetHostKey generates and returns a new  host-key for a given host-id
+func restResetHostKey(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if len(hostID) == 0 {
+		restBadRequest(w, fmt.Errorf("hostID must be specified for DELETE"))
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	key, err := facade.ResetHostKey(dataCtx, hostID)
+	if err != nil {
+		glog.Errorf("Could not reset key for host %s: %v", hostID, err)
+		restServerError(w, err)
+		return
+	}
+	glog.V(0).Info("Reset host key for ", hostID)
+	w.WriteJson(&addHostResponse{simpleResponse{"Reset host-key", hostLinks(hostID)}, string(key[:])})
 }
 
 func buildHostMonitoringProfile(host *host.Host) error {
