@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/auth"
-	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
@@ -247,9 +246,6 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 			glog.Warningf("Failed assigning another ip to service %s: %s", svc.ID, err)
 		}
 	}
-
-	// unregister host as dfs client
-	storage.UnregisterStorageClient(_host.IPAddr)
 
 	return nil
 }
